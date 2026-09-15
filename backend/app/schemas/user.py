@@ -23,3 +23,20 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+# D02-1.2: Đăng nhập & Xác thực JWT Token
+class UserLogin(BaseModel):
+    """
+    Schema kiểm tra dữ liệu đầu vào khi người dùng đăng nhập.
+    """
+    email: EmailStr = Field(..., description="Email tài khoản")
+    password: str = Field(..., min_length=1, description="Mật khẩu đăng nhập")
+
+class LoginResponse(BaseModel):
+    """
+    Schema dữ liệu trả về sau khi đăng nhập thành công.
+    """
+    token: str = Field(..., description="JWT Bearer Token")
+    token_type: str = Field(default="bearer", description="Loại token")
+    user: UserResponse = Field(..., description="Thông tin người dùng")
+
