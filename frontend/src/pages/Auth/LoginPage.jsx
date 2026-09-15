@@ -1,12 +1,22 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { loginUser } from '../../api/authApi';
-import { Cake, Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Cake, Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2, Loader2, ShieldAlert, Info } from 'lucide-react';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
+
+  // Xác định xem người dùng có phải vừa bị đá về từ route được bảo vệ không
+  const fromPath = location.state?.from?.pathname;
+  const isAdminRequired = fromPath?.startsWith('/admin');
+  const redirectWarning = isAdminRequired
+    ? 'Khu vực này yêu cầu đăng nhập bằng tài khoản Quản trị viên (Admin).'
+    : fromPath
+    ? 'Vui lòng đăng nhập để tiếp tục truy cập trang bạn vừa yêu cầu.'
+    : null;
 
   const [formData, setFormData] = useState({
     email: '',
@@ -53,9 +63,10 @@ export default function LoginPage() {
       login(response.token, response.user);
       setSuccess(`Chào mừng bạn trở lại, ${response.user.full_name}!`);
 
-      // 4. Chuyển hướng sau 1 giây
+      // 4. Chuyển hướng sau 1 giây: Nếu trước đó bị đá từ trang nào thì quay lại trang đó
+      const destination = fromPath || '/';
       setTimeout(() => {
-        navigate('/');
+        navigate(destination, { replace: true });
       }, 1000);
 
     } catch (err) {
@@ -86,7 +97,7 @@ export default function LoginPage() {
         boxSizing: 'border-box'
       }}>
         {/* Tiêu đề & Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
           <div style={{
             width: '56px',
             height: '56px',
@@ -114,6 +125,27 @@ export default function LoginPage() {
             Chào mừng bạn quay lại với Tiệm Bánh Của Vy!
           </p>
         </div>
+
+        {/* Banner cảnh báo khi bị điều hướng từ Protected Route */}
+        {redirectWarning && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            background: isAdminRequired ? '#FEF2F2' : '#FFFBEB',
+            border: `1px solid ${isAdminRequired ? '#FCA5A5' : '#FCD34D'}`,
+            color: isAdminRequired ? '#DC2626' : '#92400E',
+            padding: '0.875rem 1rem',
+            borderRadius: '12px',
+            marginBottom: '1.5rem',
+            fontSize: '0.875rem',
+            lineHeight: 1.4,
+            fontWeight: '500'
+          }}>
+            {isAdminRequired ? <ShieldAlert size={20} style={{ flexShrink: 0 }} /> : <Info size={20} style={{ flexShrink: 0 }} />}
+            <span>{redirectWarning}</span>
+          </div>
+        )}
 
         {/* Thông báo lỗi */}
         {error && (
