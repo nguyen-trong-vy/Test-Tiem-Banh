@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from app.core.database import get_supabase
 from app.core.security import hash_password
 from app.schemas.user import UserRegister
-#D02-1.2
+#D02-1.1(fix)
 async def register_user(data: UserRegister) -> dict:
     """
     Nghiệp vụ đăng ký tài khoản người dùng mới:
