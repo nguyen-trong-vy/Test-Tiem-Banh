@@ -40,7 +40,7 @@ export async function getMe() {
   });
 }
 
-// D02-1.4: API kiểm tra quyền Quản trị viên (Admin Only)
+// D04-1.4: API kiểm tra quyền Quản trị viên (Admin Only)
 /**
  * API Gọi endpoint bảo vệ chỉ dành cho Admin
  * @returns {Promise<Object>} { success, message, admin }
@@ -49,4 +49,4 @@ export async function checkAdminOnly() {
   return await fetchClient('/auth/admin-only', {
     method: 'GET',
   });
-}
+}

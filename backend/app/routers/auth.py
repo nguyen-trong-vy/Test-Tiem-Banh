@@ -40,7 +40,7 @@ async def login(credentials: UserLogin):
 async def get_me(current_user: dict = Depends(get_current_user)):
     return current_user
 
-# D02-1.4: Phân quyền Truy cập Protected Route - Chỉ dành cho Admin
+# D04-1.4: Phân quyền Truy cập Protected Route - Chỉ dành cho Admin
 @router.get(
     "/admin-only",
     status_code=status.HTTP_200_OK,
