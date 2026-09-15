@@ -9,7 +9,7 @@ ENV_FILE = BASE_DIR / ".env"
 load_dotenv(dotenv_path=ENV_FILE)
 
 class Settings:
-    PROJECT_NAME: str = "Tiệm Bánh Của Vy API (Yuu Cake)"
+    PROJECT_NAME: str = "Tiệm Bánh Của Vy API"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api"
     
