@@ -1,9 +1,10 @@
 import React from 'react';
 import { useCart } from '../context/CartContext';
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function CartDrawer() {
+  const navigate = useNavigate();
   const {
     cartItems,
     cartCount,
@@ -294,8 +295,8 @@ export default function CartDrawer() {
 
             <button
               onClick={() => {
-                alert('Chức năng đặt hàng: Thông tin đơn hàng đã sẵn sàng chuyển sang bước Đặt Bánh!');
                 setIsCartOpen(false);
+                navigate('/checkout');
               }}
               style={{
                 width: '100%',
