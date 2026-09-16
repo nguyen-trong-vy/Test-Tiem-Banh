@@ -10,6 +10,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 import HomePage from './pages/Client/HomePage';
 import CategoryPage from './pages/Client/CategoryPage';
+import CheckoutPage from './pages/Client/CheckoutPage';
+import OrderSuccessPage from './pages/Client/OrderSuccessPage';
 import RegisterPage from './pages/Auth/RegisterPage';
 import LoginPage from './pages/Auth/LoginPage';
 import UnauthorizedPage from './pages/Auth/UnauthorizedPage';
@@ -39,6 +41,18 @@ export default function App() {
                 {/* Trang danh mục bánh chi tiết */}
                 <Route path="/categories" element={<CategoryPage />} />
                 <Route path="/categories/:slug" element={<CategoryPage />} />
+
+                {/* Nhánh Đặt hàng & Thanh toán gặp mặt (Checkout Flow) */}
+                <Route
+                  path="/checkout"
+                  element={
+                    <ProtectedRoute>
+                      <CheckoutPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
+                <Route path="/order-success" element={<OrderSuccessPage />} />
 
                 {/* Nhánh Auth & Quản trị */}
                 <Route path="/register" element={<RegisterPage />} />
