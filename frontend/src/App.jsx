@@ -18,6 +18,7 @@ import UnauthorizedPage from './pages/Auth/UnauthorizedPage';
 import ProfilePage from './pages/Client/ProfilePage';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import OrderManagePage from './pages/Admin/OrderManagePage';
+import ProductManagePage from './pages/Admin/ProductManagePage';
 
 export default function App() {
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -82,6 +83,14 @@ export default function App() {
                   element={
                     <ProtectedRoute requiredRole="admin">
                       <OrderManagePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/products"
+                  element={
+                    <ProtectedRoute requiredRole="admin">
+                      <ProductManagePage />
                     </ProtectedRoute>
                   }
                 />

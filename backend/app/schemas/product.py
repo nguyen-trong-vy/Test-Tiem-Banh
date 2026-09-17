@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel
 
 class ProductResponse(BaseModel):
@@ -16,3 +16,10 @@ class ProductResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ProductPaginatedResponse(BaseModel):
+    items: List[ProductResponse]
+    total: int
+    page: int
+    limit: int
+    total_pages: int
