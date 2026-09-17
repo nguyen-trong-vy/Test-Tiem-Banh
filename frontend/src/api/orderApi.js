@@ -19,3 +19,40 @@ export async function getMyOrders() {
     method: 'GET',
   });
 }
+
+/**
+ * Tính năng 4.2: Admin xem toàn bộ danh sách đơn hàng
+ * @param {Object} params - { order_status, payment_status }
+ */
+export async function getAdminOrders(params = {}) {
+  const query = new URLSearchParams();
+  if (params.order_status) query.append('order_status', params.order_status);
+  if (params.payment_status) query.append('payment_status', params.payment_status);
+
+  const queryString = query.toString() ? `?${query.toString()}` : '';
+  return await fetchClient(`/orders${queryString}`, {
+    method: 'GET',
+  });
+}
+
+/**
+ * Tính năng 4.2: Admin cập nhật trạng thái đơn hàng (PENDING, CONFIRMED, DELIVERING, COMPLETED, CANCELLED)
+ * @param {string} orderId
+ * @param {string} orderStatus
+ */
+export async function updateOrderStatus(orderId, orderStatus) {
+  return await fetchClient(`/orders/${orderId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ order_status: orderStatus }),
+  });
+}
+
+/**
+ * Tính năng 4.3: Admin xác nhận đã nhận tiền khi gặp mặt (DIRECT_MEETUP)
+ * @param {string} orderId
+ */
+export async function confirmOrderPayment(orderId) {
+  return await fetchClient(`/orders/${orderId}/confirm-payment`, {
+    method: 'PUT',
+  });
+}
