@@ -84,17 +84,25 @@ export default function AdminDashboard() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
           gap: '1rem'
         }}>
-          <div style={{
-            padding: '1.25rem',
-            background: '#FAFAF9',
-            borderRadius: '12px',
-            border: '1px solid #E7E5E4',
-            textAlign: 'center'
-          }}>
+          <Link
+            to="/admin/products"
+            style={{
+              padding: '1.25rem',
+              background: '#FFFFFF',
+              borderRadius: '12px',
+              border: '1.5px solid #FDE68A',
+              textAlign: 'center',
+              textDecoration: 'none',
+              display: 'block',
+              boxShadow: '0 4px 12px rgba(217, 119, 6, 0.08)',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              cursor: 'pointer'
+            }}
+          >
             <Package size={28} color="#D97706" style={{ margin: '0 auto 0.5rem auto' }} />
             <div style={{ fontWeight: '700', color: '#451A03', fontSize: '0.95rem' }}>Quản lý Bánh</div>
-            <div style={{ fontSize: '0.8rem', color: '#78716C' }}>Nhánh Catalog</div>
-          </div>
+            <div style={{ fontSize: '0.8rem', color: '#B45309', fontWeight: '600' }}>5.1 & 5.2 CRUD Bánh ›</div>
+          </Link>
 
           <Link
             to="/admin/orders"
