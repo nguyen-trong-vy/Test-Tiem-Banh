@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getCategories } from '../../api/catalogApi';
-import { getAdminProducts } from '../../api/productApi';
+import { getAdminProducts, deleteProduct } from '../../api/productApi';
 import ProductFormModal from '../../components/Admin/ProductFormModal';
 import {
   Package,
@@ -16,8 +16,10 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
-  Tag,
-  Eye
+  Edit3,
+  Trash2,
+  X,
+  AlertTriangle
 } from 'lucide-react';
 
 export default function ProductManagePage() {
@@ -40,8 +42,13 @@ export default function ProductManagePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
 
-  // Modal thêm bánh mới (Tính năng 5.2)
+  // Modal thêm mới & chỉnh sửa bánh (Tính năng 5.2 & 5.3)
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+
+  // Modal xác nhận Xóa mềm (Tính năng 5.4)
+  const [deletingProduct, setDeletingProduct] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Nạp danh mục
   useEffect(() => {
@@ -98,10 +105,50 @@ export default function ProductManagePage() {
     }
   }, [successMsg]);
 
-  const handleProductCreated = (newProd) => {
-    setSuccessMsg(`Đã thêm thành công bánh "${newProd.name}" vào thực đơn!`);
-    setPage(1);
-    fetchProducts();
+  // Mở modal thêm bánh mới
+  const handleOpenCreateModal = () => {
+    setEditingProduct(null);
+    setIsModalOpen(true);
+  };
+
+  // Mở modal sửa bánh (Tính năng 5.3)
+  const handleOpenEditModal = (product) => {
+    setEditingProduct(product);
+    setIsModalOpen(true);
+  };
+
+  // Xử lý sau khi Thêm mới hoặc Cập nhật bánh thành công
+  const handleProductSaved = (savedProd, isEdit) => {
+    if (isEdit) {
+      // Cập nhật trực tiếp dòng bánh trong bảng
+      setProducts(prev => prev.map(p => p.id === savedProd.id ? { ...p, ...savedProd } : p));
+      setSuccessMsg(`Đã cập nhật thông tin bánh "${savedProd.name}" thành công!`);
+    } else {
+      // Thêm mới: Quay về trang 1 để xem bánh mới
+      setSuccessMsg(`Đã thêm thành công bánh "${savedProd.name}" vào thực đơn!`);
+      setPage(1);
+      fetchProducts();
+    }
+  };
+
+  // Xử lý xác nhận xóa mềm bánh (Tính năng 5.4)
+  const handleConfirmDelete = async () => {
+    if (!deletingProduct) return;
+    try {
+      setIsDeleting(true);
+      await deleteProduct(deletingProduct.id);
+
+      // Loại bỏ bánh khỏi danh sách hiển thị
+      setProducts(prev => prev.filter(p => p.id !== deletingProduct.id));
+      setTotal(t => Math.max(0, t - 1));
+      setSuccessMsg(`Đã xóa mềm bánh "${deletingProduct.name}" thành công. Các đơn hàng cũ vẫn được bảo toàn.`);
+      setDeletingProduct(null);
+    } catch (err) {
+      console.error('Lỗi khi xóa bánh:', err);
+      setErrorMsg(err.message || 'Không thể xóa bánh. Vui lòng thử lại.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -143,7 +190,7 @@ export default function ProductManagePage() {
               Quản Lý Thực Đơn Bánh
             </h1>
             <p style={{ color: '#8A7366', fontSize: '0.92rem', margin: 0 }}>
-              Xem toàn bộ danh sách các loại bánh, phân trang và thêm bánh mới vào hệ thống
+              Xem toàn bộ danh sách, thêm bánh mới, chỉnh sửa thông tin hoặc xóa bánh an toàn
             </p>
           </div>
 
@@ -172,7 +219,7 @@ export default function ProductManagePage() {
 
             {/* Nút Thêm Bánh Mới (Tính năng 5.2) */}
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleOpenCreateModal}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -310,7 +357,7 @@ export default function ProductManagePage() {
           </div>
         </div>
 
-        {/* Bảng danh sách bánh (Tính năng 5.1) */}
+        {/* Bảng danh sách bánh (Tính năng 5.1, 5.3 & 5.4) */}
         {loading ? (
           <div style={{
             textAlign: 'center',
@@ -336,7 +383,7 @@ export default function ProductManagePage() {
               Thử thay đổi bộ lọc danh mục hoặc từ khóa tìm kiếm.
             </p>
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleOpenCreateModal}
               style={{
                 backgroundColor: '#451A03',
                 color: '#FFFFFF',
@@ -359,7 +406,7 @@ export default function ProductManagePage() {
             overflow: 'hidden'
           }}>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '880px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '920px' }}>
                 <thead>
                   <tr style={{
                     backgroundColor: '#FDFBF7',
@@ -373,9 +420,10 @@ export default function ProductManagePage() {
                     <th style={{ padding: '1rem 1.25rem', width: '80px' }}>Hình ảnh</th>
                     <th style={{ padding: '1rem 1.25rem' }}>Tên bánh & Slug</th>
                     <th style={{ padding: '1rem 1.25rem' }}>Danh mục</th>
-                    <th style={{ padding: '1rem 1.25rem' }}>Đơn giá (VND)</th>
+                    <th style={{ padding: '1rem 1.25rem' }}>Đơn giá</th>
                     <th style={{ padding: '1rem 1.25rem' }}>Mô tả</th>
                     <th style={{ padding: '1rem 1.25rem', textAlign: 'center' }}>Trạng thái</th>
+                    <th style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -455,7 +503,7 @@ export default function ProductManagePage() {
                         </td>
 
                         {/* Mô tả */}
-                        <td style={{ padding: '0.85rem 1.25rem', verticalAlign: 'middle', maxWidth: '240px' }}>
+                        <td style={{ padding: '0.85rem 1.25rem', verticalAlign: 'middle', maxWidth: '220px' }}>
                           <div style={{
                             fontSize: '0.82rem',
                             color: '#6E5648',
@@ -482,6 +530,57 @@ export default function ProductManagePage() {
                           }}>
                             Đang mở bán
                           </span>
+                        </td>
+
+                        {/* Cột Thao tác: Sửa (5.3) & Xóa mềm (5.4) */}
+                        <td style={{ padding: '0.85rem 1.25rem', verticalAlign: 'middle', textAlign: 'right' }}>
+                          <div style={{ display: 'inline-flex', gap: '0.4rem', alignItems: 'center' }}>
+                            {/* Nút Sửa (Tính năng 5.3) */}
+                            <button
+                              onClick={() => handleOpenEditModal(p)}
+                              title="Chỉnh sửa thông tin bánh"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                backgroundColor: '#EFF6FF',
+                                color: '#1D4ED8',
+                                border: '1px solid #BFDBFE',
+                                borderRadius: '8px',
+                                padding: '0.4rem 0.65rem',
+                                fontSize: '0.8rem',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s'
+                              }}
+                            >
+                              <Edit3 size={14} />
+                              <span>Sửa</span>
+                            </button>
+
+                            {/* Nút Xóa mềm (Tính năng 5.4) */}
+                            <button
+                              onClick={() => setDeletingProduct(p)}
+                              title="Xóa mềm bánh khỏi thực đơn"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                backgroundColor: '#FEF2F2',
+                                color: '#DC2626',
+                                border: '1px solid #FECACA',
+                                borderRadius: '8px',
+                                padding: '0.4rem 0.65rem',
+                                fontSize: '0.8rem',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s'
+                              }}
+                            >
+                              <Trash2 size={14} />
+                              <span>Xóa</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -573,12 +672,156 @@ export default function ProductManagePage() {
           </div>
         )}
 
-        {/* MODAL THÊM BÁNH MỚI (Tính năng 5.2) */}
+        {/* MODAL THÊM / SỬA BÁNH (Tính năng 5.2 & 5.3) */}
         <ProductFormModal
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onSuccess={handleProductCreated}
+          initialData={editingProduct}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingProduct(null);
+          }}
+          onSuccess={handleProductSaved}
         />
+
+        {/* MODAL XÁC NHẬN XÓA MỀM BÁNH (Tính năng 5.4) */}
+        {deletingProduct && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.55)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: '1.25rem'
+          }}>
+            <div style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '24px',
+              maxWidth: '460px',
+              width: '100%',
+              padding: '2rem',
+              boxShadow: '0 12px 40px rgba(0, 0, 0, 0.2)',
+              border: '1px solid #F3EDE8',
+              textAlign: 'center'
+            }}>
+              {/* Icon cảnh báo */}
+              <div style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                backgroundColor: '#FEE2E2',
+                color: '#DC2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1.25rem auto'
+              }}>
+                <Trash2 size={28} />
+              </div>
+
+              <span style={{
+                fontSize: '0.78rem',
+                fontWeight: '700',
+                color: '#DC2626',
+                backgroundColor: '#FEF2F2',
+                padding: '0.2rem 0.6rem',
+                borderRadius: '9999px',
+                display: 'inline-block',
+                marginBottom: '0.5rem'
+              }}>
+                TÍNH NĂNG 5.4 • SOFT DELETE
+              </span>
+
+              <h3 style={{
+                fontSize: '1.3rem',
+                fontWeight: '800',
+                color: '#3D1C06',
+                margin: '0 0 0.5rem 0'
+              }}>
+                Xác Nhận Xóa Bánh Khỏi Thực Đơn?
+              </h3>
+
+              <p style={{ color: '#6E5648', fontSize: '0.9rem', lineHeight: 1.5, margin: '0 0 1.25rem 0' }}>
+                Bạn có chắc chắn muốn xóa bánh <strong>"{deletingProduct.name}"</strong> ({Number(deletingProduct.price).toLocaleString('vi-VN')}đ)?
+              </p>
+
+              {/* Hộp giải thích nghiệp vụ Soft Delete */}
+              <div style={{
+                backgroundColor: '#FEF3C7',
+                border: '1px solid #FDE68A',
+                borderRadius: '12px',
+                padding: '0.75rem 1rem',
+                color: '#92400E',
+                fontSize: '0.82rem',
+                textAlign: 'left',
+                lineHeight: 1.45,
+                marginBottom: '1.5rem',
+                display: 'flex',
+                gap: '0.5rem'
+              }}>
+                <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <span>
+                  <strong>Quy tắc bảo toàn dữ liệu:</strong> Hệ thống sẽ thực hiện <em>Xóa mềm</em> (ẩn bánh khỏi thực đơn của khách). Toàn bộ lịch sử các đơn hàng cũ đã đặt chiếc bánh này vẫn được giữ nguyên vẹn 100%.
+                </span>
+              </div>
+
+              {/* Nút bấm */}
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => setDeletingProduct(null)}
+                  style={{
+                    flex: 1,
+                    padding: '0.8rem',
+                    borderRadius: '12px',
+                    border: '1px solid #E5D7CC',
+                    backgroundColor: '#FFFFFF',
+                    color: '#78655A',
+                    fontWeight: '700',
+                    fontSize: '0.92rem',
+                    cursor: isDeleting ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  Hủy bỏ
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={handleConfirmDelete}
+                  style={{
+                    flex: 1,
+                    padding: '0.8rem',
+                    borderRadius: '12px',
+                    border: 'none',
+                    backgroundColor: '#DC2626',
+                    color: '#FFFFFF',
+                    fontWeight: '700',
+                    fontSize: '0.92rem',
+                    cursor: isDeleting ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.4rem',
+                    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.25)'
+                  }}
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Đang xóa...</span>
+                    </>
+                  ) : (
+                    <span>Xác nhận xóa</span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

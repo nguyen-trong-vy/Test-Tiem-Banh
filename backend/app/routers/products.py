@@ -4,7 +4,9 @@ from app.schemas.product import ProductResponse, ProductPaginatedResponse
 from app.services.product import (
     get_all_products,
     get_admin_products_paginated,
-    create_product_service
+    create_product_service,
+    update_product_service,
+    soft_delete_product_service
 )
 from app.dependencies import require_admin
 
@@ -66,3 +68,40 @@ async def create_new_product(
         description=description,
         file=file
     )
+
+@router.put(
+    "/{product_id}",
+    response_model=ProductResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Tính năng 5.3: Admin chỉnh sửa thông tin bánh & đổi ảnh đại diện (UPDATE)",
+    description="Yêu cầu quyền Quản trị viên. Nhận dữ liệu cập nhật, nếu có file ảnh mới thì upload và đổi image_url, nếu không thì giữ nguyên ảnh cũ."
+)
+async def update_product(
+    product_id: str,
+    name: str = Form(..., description="Tên bánh mới"),
+    price: float = Form(..., ge=0, description="Đơn giá bánh mới"),
+    category_id: str = Form(..., description="ID danh mục bánh"),
+    description: Optional[str] = Form(None, description="Mô tả bánh"),
+    file: Optional[UploadFile] = File(None, description="Ảnh đại diện mới (nếu muốn đổi)"),
+    current_admin: dict = Depends(require_admin)
+):
+    return await update_product_service(
+        product_id=product_id,
+        name=name,
+        price=price,
+        category_id=category_id,
+        description=description,
+        file=file
+    )
+
+@router.delete(
+    "/{product_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Tính năng 5.4: Admin xóa mềm bánh (Soft Delete)",
+    description="Yêu cầu quyền Quản trị viên. Cập nhật is_deleted=True, ẩn bánh khỏi thực đơn nhưng bảo toàn toàn bộ đơn hàng cũ."
+)
+async def delete_product(
+    product_id: str,
+    current_admin: dict = Depends(require_admin)
+):
+    return await soft_delete_product_service(product_id=product_id)

@@ -32,4 +32,26 @@ export async function createProduct(formData) {
   });
 }
 
+/**
+ * Tính năng 5.3: Admin chỉnh sửa thông tin bánh & đổi ảnh đại diện (UPDATE)
+ * @param {string} productId
+ * @param {FormData} formData - Gồm name, price, category_id, description, file (ảnh nếu có)
+ */
+export async function updateProduct(productId, formData) {
+  return await fetchClient(`/products/${productId}`, {
+    method: 'PUT',
+    body: formData,
+  });
+}
+
+/**
+ * Tính năng 5.4: Admin xóa mềm bánh (Soft Delete bảo toàn đơn hàng)
+ * @param {string} productId
+ */
+export async function deleteProduct(productId) {
+  return await fetchClient(`/products/${productId}`, {
+    method: 'DELETE',
+  });
+}
+
 export * from './catalogApi';

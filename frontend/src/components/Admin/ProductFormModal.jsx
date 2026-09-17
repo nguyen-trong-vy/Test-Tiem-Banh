@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getCategories } from '../../api/catalogApi';
-import { createProduct } from '../../api/productApi';
+import { createProduct, updateProduct } from '../../api/productApi';
 import {
   X,
   UploadCloud,
-  Image as ImageIcon,
   Loader2,
   AlertCircle,
   Check,
-  Plus
+  Plus,
+  Edit3
 } from 'lucide-react';
 
-export default function ProductFormModal({ isOpen, onClose, onSuccess }) {
+export default function ProductFormModal({ isOpen, onClose, onSuccess, initialData = null }) {
+  const isEditMode = !!initialData;
+
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
 
@@ -28,16 +30,10 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  // Nạp danh mục khi mở modal
+  // Nạp danh mục và đổ dữ liệu khi mở modal
   useEffect(() => {
     if (!isOpen) return;
 
-    // Reset form
-    setName('');
-    setPrice('');
-    setDescription('');
-    setSelectedFile(null);
-    setPreviewUrl(null);
     setErrorMsg(null);
 
     const fetchCats = async () => {
@@ -46,8 +42,25 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess }) {
         const data = await getCategories();
         const cats = Array.isArray(data) ? data : [];
         setCategories(cats);
-        if (cats.length > 0) {
-          setCategoryId(cats[0].id);
+
+        if (initialData) {
+          // Chế độ Edit: Đổ dữ liệu cũ vào form
+          setName(initialData.name || '');
+          setPrice(initialData.price !== undefined ? String(initialData.price) : '');
+          setCategoryId(initialData.category_id || (cats.length > 0 ? cats[0].id : ''));
+          setDescription(initialData.description || '');
+          setPreviewUrl(initialData.image_url || null);
+          setSelectedFile(null);
+        } else {
+          // Chế độ Create: Reset trắng form
+          setName('');
+          setPrice('');
+          setDescription('');
+          setSelectedFile(null);
+          setPreviewUrl(null);
+          if (cats.length > 0) {
+            setCategoryId(cats[0].id);
+          }
         }
       } catch (err) {
         console.error('Lỗi khi tải danh mục:', err);
@@ -57,7 +70,7 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess }) {
     };
 
     fetchCats();
-  }, [isOpen]);
+  }, [isOpen, initialData]);
 
   // Xử lý chọn file ảnh
   const handleFileChange = (e) => {
@@ -75,7 +88,7 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess }) {
 
   const handleRemoveImage = () => {
     setSelectedFile(null);
-    if (previewUrl) {
+    if (previewUrl && previewUrl.startsWith('blob:')) {
       URL.revokeObjectURL(previewUrl);
     }
     setPreviewUrl(null);
@@ -90,7 +103,7 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess }) {
       setErrorMsg('Vui lòng nhập tên bánh.');
       return;
     }
-    if (!price || Number(price) < 0) {
+    if (price === '' || Number(price) < 0) {
       setErrorMsg('Vui lòng nhập đơn giá hợp lệ (từ 0đ trở lên).');
       return;
     }
@@ -114,12 +127,18 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess }) {
         formData.append('file', selectedFile);
       }
 
-      const created = await createProduct(formData);
-      onSuccess?.(created);
+      let result;
+      if (isEditMode) {
+        result = await updateProduct(initialData.id, formData);
+      } else {
+        result = await createProduct(formData);
+      }
+
+      onSuccess?.(result, isEditMode);
       onClose();
     } catch (err) {
-      console.error('Lỗi khi thêm bánh:', err);
-      setErrorMsg(err.message || 'Không thể thêm bánh mới. Vui lòng thử lại.');
+      console.error(isEditMode ? 'Lỗi khi cập nhật bánh:' : 'Lỗi khi thêm bánh:', err);
+      setErrorMsg(err.message || 'Thao tác không thành công. Vui lòng thử lại.');
     } finally {
       setIsSubmitting(false);
     }
@@ -179,14 +198,14 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess }) {
           <span style={{
             fontSize: '0.78rem',
             fontWeight: '700',
-            color: '#D97706',
-            backgroundColor: '#FEF3C7',
+            color: isEditMode ? '#1D4ED8' : '#D97706',
+            backgroundColor: isEditMode ? '#DBEAFE' : '#FEF3C7',
             padding: '0.2rem 0.6rem',
             borderRadius: '9999px',
             display: 'inline-block',
             marginBottom: '0.5rem'
           }}>
-            TÍNH NĂNG 5.2 • CREATE PRODUCT
+            {isEditMode ? 'TÍNH NĂNG 5.3 • UPDATE PRODUCT' : 'TÍNH NĂNG 5.2 • CREATE PRODUCT'}
           </span>
           <h2 style={{
             fontSize: '1.45rem',
@@ -195,10 +214,12 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess }) {
             margin: '0 0 0.35rem 0',
             fontFamily: 'var(--font-heading)'
           }}>
-            Thêm Bánh Mới Vào Thực Đơn
+            {isEditMode ? 'Chỉnh Sửa Thông Tin Bánh' : 'Thêm Bánh Mới Vào Thực Đơn'}
           </h2>
           <p style={{ color: '#8A7366', fontSize: '0.88rem', margin: 0 }}>
-            Điền thông tin và tải ảnh bánh lên máy chủ để phục vụ khách hàng
+            {isEditMode
+              ? 'Thay đổi thông tin, giá bán hoặc tải ảnh mới thay thế ảnh hiện tại'
+              : 'Điền thông tin và tải ảnh bánh lên máy chủ để phục vụ khách hàng'}
           </p>
         </div>
 
@@ -332,9 +353,28 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess }) {
 
           {/* Khu vực tải ảnh & Preview */}
           <div>
-            <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '700', color: '#451A03', marginBottom: '0.35rem' }}>
-              Ảnh đại diện bánh (Upload lên Supabase Storage)
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <label style={{ fontSize: '0.88rem', fontWeight: '700', color: '#451A03' }}>
+                Ảnh đại diện bánh {isEditMode ? '(Đổi ảnh mới nếu muốn)' : ''}
+              </label>
+              {previewUrl && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#D97706',
+                    fontSize: '0.82rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Chọn ảnh khác
+                </button>
+              )}
+            </div>
 
             <input
               type="file"
@@ -345,7 +385,7 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess }) {
             />
 
             {previewUrl ? (
-              /* Đã chọn ảnh -> Hiển thị khung xem trước */
+              /* Đã có ảnh (ảnh cũ hoặc ảnh mới vừa chọn) -> Hiển thị khung xem trước */
               <div style={{
                 position: 'relative',
                 borderRadius: '14px',
@@ -394,7 +434,7 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess }) {
                   fontSize: '0.75rem',
                   fontWeight: '600'
                 }}>
-                  {selectedFile?.name}
+                  {selectedFile ? `File mới: ${selectedFile.name}` : 'Ảnh đại diện hiện tại'}
                 </div>
               </div>
             ) : (
@@ -466,7 +506,12 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess }) {
               {isSubmitting ? (
                 <>
                   <Loader2 size={18} className="animate-spin" />
-                  <span>Đang tải bánh lên...</span>
+                  <span>{isEditMode ? 'Đang cập nhật...' : 'Đang tải bánh lên...'}</span>
+                </>
+              ) : isEditMode ? (
+                <>
+                  <Edit3 size={18} />
+                  <span>Cập Nhật Thay Đổi</span>
                 </>
               ) : (
                 <>
