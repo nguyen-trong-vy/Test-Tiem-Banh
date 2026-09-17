@@ -50,3 +50,6 @@ class OrderResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class OrderStatusUpdate(BaseModel):
+    order_status: str = Field(..., description="Trạng thái đơn hàng: PENDING, CONFIRMED, DELIVERING, COMPLETED, CANCELLED")
