@@ -3,6 +3,7 @@ import re
 import math
 import uuid
 import unicodedata
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 from fastapi import HTTPException, UploadFile, status
@@ -261,4 +262,135 @@ async def create_product_service(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi hệ thống khi thêm bánh mới: {str(e)}"
+        )
+
+async def update_product_service(
+    product_id: str,
+    name: str,
+    price: float,
+    category_id: str,
+    description: Optional[str] = None,
+    file: Optional[UploadFile] = None
+) -> dict:
+    """
+    Tính năng 5.3: Admin chỉnh sửa thông tin bánh & đổi ảnh đại diện (UPDATE).
+    Nếu có file ảnh mới -> upload và cập nhật image_url.
+    Nếu không có file ảnh mới -> giữ nguyên image_url cũ.
+    """
+    if not name or not name.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tên bánh không được để trống.")
+    if price < 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Đơn giá bánh không được âm.")
+
+    supabase = get_supabase()
+
+    # 1. Kiểm tra bánh tồn tại
+    existing_res = supabase.table("products").select("*").eq("id", product_id).execute()
+    if not existing_res.data or len(existing_res.data) == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy bánh với ID: {product_id}")
+
+    existing_prod = existing_res.data[0]
+
+    # 2. Xử lý slug: nếu đổi tên bánh thì cập nhật lại slug
+    slug = existing_prod.get("slug")
+    clean_name = name.strip()
+    if clean_name.lower() != existing_prod.get("name", "").lower():
+        base_slug = slugify_vietnamese(clean_name)
+        slug = base_slug
+        try:
+            check = supabase.table("products").select("id").eq("slug", slug).neq("id", product_id).execute()
+            if check.data and len(check.data) > 0:
+                slug = f"{base_slug}-{uuid.uuid4().hex[:6]}"
+        except Exception:
+            pass
+
+    # 3. Xử lý ảnh: nếu có upload file mới thì upload, nếu không giữ nguyên ảnh cũ
+    image_url = existing_prod.get("image_url")
+    if file and file.filename:
+        image_url = await upload_cake_image(file)
+
+    now_str = datetime.now(timezone.utc).isoformat()
+    payload = {
+        "name": clean_name,
+        "slug": slug,
+        "price": price,
+        "category_id": category_id,
+        "description": description.strip() if description else None,
+        "image_url": image_url,
+        "updated_at": now_str
+    }
+
+    try:
+        res = supabase.table("products").update(payload).eq("id", product_id).execute()
+        if not res.data or len(res.data) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Không thể cập nhật thông tin bánh trong cơ sở dữ liệu."
+            )
+
+        updated_prod = res.data[0]
+        # Lấy tên category
+        cat_name = None
+        cat_slug = None
+        try:
+            c_res = supabase.table("categories").select("name, slug").eq("id", category_id).execute()
+            if c_res.data and len(c_res.data) > 0:
+                cat_name = c_res.data[0].get("name")
+                cat_slug = c_res.data[0].get("slug")
+        except Exception:
+            pass
+
+        return {
+            "id": str(updated_prod.get("id")),
+            "category_id": str(updated_prod.get("category_id")),
+            "category_name": cat_name,
+            "category_slug": cat_slug,
+            "name": updated_prod.get("name"),
+            "slug": updated_prod.get("slug"),
+            "description": updated_prod.get("description"),
+            "price": float(updated_prod.get("price") or 0),
+            "image_url": updated_prod.get("image_url"),
+            "is_deleted": updated_prod.get("is_deleted", False),
+            "created_at": str(updated_prod.get("created_at")) if updated_prod.get("created_at") else None
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR update_product_service] {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi hệ thống khi cập nhật bánh: {str(e)}"
+        )
+
+async def soft_delete_product_service(product_id: str) -> dict:
+    """
+    Tính năng 5.4: Admin xóa mềm bánh (Soft Delete).
+    Cập nhật is_deleted = True để ẩn khỏi danh mục và thực đơn bán,
+    nhưng bảo toàn nguyên vẹn lịch sử các đơn hàng cũ trong order_items.
+    """
+    supabase = get_supabase()
+    # Kiểm tra tồn tại
+    existing_res = supabase.table("products").select("id, name").eq("id", product_id).execute()
+    if not existing_res.data or len(existing_res.data) == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy bánh với ID: {product_id}")
+
+    product_name = existing_res.data[0].get("name", "Bánh")
+
+    try:
+        now_str = datetime.now(timezone.utc).isoformat()
+        res = supabase.table("products").update({
+            "is_deleted": True,
+            "updated_at": now_str
+        }).eq("id", product_id).execute()
+
+        return {
+            "message": f"Đã xóa mềm bánh '{product_name}' thành công. Đơn hàng cũ vẫn được bảo toàn nguyên vẹn.",
+            "id": product_id,
+            "is_deleted": True
+        }
+    except Exception as e:
+        print(f"[ERROR soft_delete_product_service] {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi xóa mềm bánh: {str(e)}"
         )

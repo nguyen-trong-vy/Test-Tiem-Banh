@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.routers import auth, categories, products, orders
+from app.routers import auth, categories, products, orders, statistics
 
 # Khoi tao ung dung FastAPI kem tai lieu truc quan Swagger UI
 app = FastAPI(
@@ -26,6 +26,7 @@ app.include_router(auth.router)
 app.include_router(categories.router)
 app.include_router(products.router)
 app.include_router(orders.router)
+app.include_router(statistics.router)
 
 @app.get("/", tags=["Root"])
 def root():
